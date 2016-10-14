@@ -4,6 +4,9 @@ import time
 
 class CaptureManager(object):
 
+    # Most of the member variables are private, as denoted by the underscore prefix
+    # These private variables relate to the state of the current frame and any file writing operations
+
     def __init__(self, capture, previewWindowManager= None, shouldMirrorPreview = False):
 
         self.previewWindowManager = previewWindowManager
@@ -32,3 +35,35 @@ class CaptureManager(object):
         if self._channel != value:
             self._channel = value
             self._frame = None
+
+    @property
+    def frame(self):
+        if self._enteredFrame and self._frame is None:
+            _, self._frame = self._capture.retrieve(channel = self.channel)
+
+        return self._frame
+
+    @property
+    def isWritingVideo(self):
+        return self._videoFilename is not None
+
+
+
+    def enterFrame(self):
+        """Capture the next frame, if any"""
+
+        # First, check that any previous frame was exited
+        assert not self._enteredFrame, 'previous enterFrame() had no matching exitFrame()'
+
+        if self._capture is not None:
+            self._enteredFrame = self._capture.grab()
+
+
+    def exitFrame(self):
+        """Draw to the window. Write to files. Release the frame"""
+        # check whether any grabbed frame is retrievable.
+        # The getter may retrieve and cache the frame
+
+        if self.frame is None:
+            self.enterFrame = False
+            return 
