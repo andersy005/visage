@@ -31,7 +31,7 @@ class Visage(object):
         
         space   -> Take a screenshot.
         Tab     -> Start/Stop recording a screencast
-        esacape -> Quit
+        escape -> Quit
         
         """
 
