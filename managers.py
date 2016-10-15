@@ -161,3 +161,36 @@ current channel, estimates a frame rate, shows the image via the window manager
 
             self._videoWriter.write(self._frame)
 
+
+class WindowManager(object):
+
+
+    def __init__(self, windowName, keypressCallback = None):
+        self.keypressCallback = keypressCallback
+
+        self._windowName = windowName
+        self._iswindowCreated = False
+
+
+    @property
+    def isWindowCreated(self):
+        return self._iswindowCreated
+
+    def createWindow(self):
+        cv2.namedWindow(self._windowName)
+        self._iswindowCreated = True
+
+    def show(self, frame):
+        cv2.imshow(self._windowName, frame)
+
+    def destroyWindow(self):
+        cv2.destroyWindow(self._windowName)
+        self._iswindowCreated = False
+
+    def processEvents(self):
+        keycode = cv2.waitKey(1)
+        if self.keypressCallback is not None adn keycode != -1:
+            # Discard any non-ASCII info encoded by GTK
+
+            keycode &= 0xFF
+            self.keypressCallback(keycode)
