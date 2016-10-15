@@ -48,6 +48,11 @@ class CaptureManager(object):
         return self._videoFilename is not None
 
 
+    """enterFrame() only grabs (synchronizes) a frame,
+whereas actual retrieval from a channel is postponed to a subsequent reading of
+the frame variable. The implementation of exitFrame() takes the image from the
+current channel, estimates a frame rate, shows the image via the window manager
+(if any), and fulfills any pending requests to write the image to files."""
 
     def enterFrame(self):
         """Capture the next frame, if any"""
@@ -105,3 +110,54 @@ class CaptureManager(object):
     self._frame = None
     self._enteredFrame = False
     
+
+    """writeImage() , startWritingVideo() , and
+    stopWritingVideo() , simply record the parameters for file writing operations,
+    whereas the actual writing operations are postponed to the next call of exitFrame()"""
+
+
+    def writeImage(self, filename):
+        """Write the next exitedi frame to an image file."""
+        self._imageFilename = filename
+
+
+    def startwritingVideo(self, filename, encoding = cv2.cv.CV_FOURCC('I', '4', '2', '0')):
+        """Start writing exited frames to a video file"""
+
+        self._videoFilename = filename
+        self._videoEnconding = encoding
+
+
+    def stopWritingVideo(self):
+        """Stop writing exited frames to a video file"""
+        self._videoFilename = None
+        self._videoEnconding = None
+        self._videoWriter = None
+
+
+    def _writeVideoFrame(self):
+
+        if not self.isWritingVideo:
+            return
+
+        if self._videoWriter is None:
+            fps = self._capture.get(cv2.cv.CV_CAP_PROP_FPS)
+
+            if fps == 0.0:
+                # The capture's FPS is unknown so use an estimate.
+                if self._framesElapsed < 20:
+                    # Wait until more frames elapse so that the estimate is more stable.
+                    return 
+
+                else:
+                    fps = self._fpsEstimate
+            size = (int(self._capture.get(
+                        cv2.cv.CV_CAP_PROP_FRAME_WIDTH)),
+                    int(self._capture.get(
+                        cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)))
+
+            self._videoWriter = cv2.VideoWriter(self._videoFilename,
+                                                self._videoEnconding, fps, size)
+
+            self._videoWriter.write(self._frame)
+
