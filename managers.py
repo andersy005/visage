@@ -74,41 +74,41 @@ current channel, estimates a frame rate, shows the image via the window manager
             return 
 
 
-    # Update the FPS estimate and related variables.
-    if self._framesElapsed == 0:
-        self._startTime = time.time()
-
-    else:
-        timeElapsed = time.time() - self._startTime
-        self._fpsEstimate = self._framesElapsed / timeElapsed
-
-    self._framesElapsed += 1
-
-
-    # Draw to the window, if any
-    if self.previewWindowManager is not None:
-        if self.shouldMirrorPreview:
-            mirroredFrame = np.fliplr(self._frame).copy()
-            self.previewWindowManager.show(mirroredFrame)
-
+        # Update the FPS estimate and related variables.
+        if self._framesElapsed == 0:
+            self._startTime = time.time()
 
         else:
-            self.previewWindowManager.show(self._frame)
+            timeElapsed = time.time() - self._startTime
+            self._fpsEstimate = self._framesElapsed / timeElapsed
+
+        self._framesElapsed += 1
 
 
-    # Write to the image file, if any
-    if self.isWritingImage:
-        cv2.imwrite(self._imageFilename, self._frame)
-        self._imageFilename = None
+        # Draw to the window, if any
+        if self.previewWindowManager is not None:
+            if self.shouldMirrorPreview:
+                mirroredFrame = np.fliplr(self._frame).copy()
+                self.previewWindowManager.show(mirroredFrame)
 
 
-    # Write to the video file, if any
-    self._writeVideoFrame()
+            else:
+                self.previewWindowManager.show(self._frame)
 
 
-    # Release the frame
-    self._frame = None
-    self._enteredFrame = False
+        # Write to the image file, if any
+        if self.isWritingImage:
+            cv2.imwrite(self._imageFilename, self._frame)
+            self._imageFilename = None
+
+
+        # Write to the video file, if any
+        self._writeVideoFrame()
+
+
+        # Release the frame
+        self._frame = None
+        self._enteredFrame = False
     
 
     """writeImage() , startWritingVideo() , and
@@ -189,7 +189,7 @@ class WindowManager(object):
 
     def processEvents(self):
         keycode = cv2.waitKey(1)
-        if self.keypressCallback is not None adn keycode != -1:
+        if self.keypressCallback is not None and keycode != -1:
             # Discard any non-ASCII info encoded by GTK
 
             keycode &= 0xFF
