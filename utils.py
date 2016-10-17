@@ -70,3 +70,12 @@ def createCompositeFunc(func0, func1):
 
     return lambda x : func0(func1(x))
 
+
+
+def createFlatView(array):
+    """Return a 1D view of an array of any dimensionality."""
+    flatView = array.view()
+    flatView.shape = array.size
+    return flatView
+    
+
