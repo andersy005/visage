@@ -34,20 +34,21 @@ def createLookupArray(func, length = 256):
     
         The lookup values are clamped to [0, length - 1]
         
-        """
+    """
 
-        if func is None:
-            return None
 
-        lookupArray = numpy.empty(length)
-        i = 0
+    if func is None:
+        return None
 
-        while i < length:
-            func_i = func(i)
-            lookupArray[i] = min( max(0, func_i), length - 1)
-            i += 1
+    lookupArray = numpy.empty(length)
+    i = 0
 
-        return lookupArray
+    while i < length:
+        func_i = func(i)
+        lookupArray[i] = min( max(0, func_i), length - 1)
+        i += 1
+
+    return lookupArray
 
 
 def applyLookupArray(lookupArray,src, dst):
