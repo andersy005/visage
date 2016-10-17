@@ -49,3 +49,22 @@ def recolorCMV(src, dst):
     cv2.max(b, g, r)
     cv2.max(b, r, b)
     cv2.merge((b, g, r), dst)
+
+
+
+class VFuncFilter(object):
+    """A filter that applies a function to V (or all of BGR)"""
+
+    def __init__(self, vFunc = None, dtype = np.uint8):
+        length = np.iinfo(dtype).max + 1
+        self._vlookupArray = utils.createLookupArray(vFunc, length)
+
+
+    def apply(self, src, dst):
+        """Apply the filter with a BGR or gray source/destination."""
+
+        srcFlatView = utils.flatView(src)
+        dstFlatView = utils.flatView(dst)
+        utils.applyLookupArray(self._vlookupArray, srcFlatView, dstFlatView)
+
+        
