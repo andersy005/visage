@@ -30,3 +30,22 @@ def recolorRC(src, dst):
 
     # Replace the values in dst image with the modified channels. 
     cv2.merge((b, b, r), dst)
+
+
+
+def recolorCMV(src, dst):
+    """Simulate conversion from BGR to CMV (Cyan, magenta, value)
+    The source and destination images must both be in BGR format.
+    Yellows are desaturated/
+    
+    Pseudocode:
+    dst.b = max(src.b, src.g,src.r)
+    dst.g = src.g
+    dst.r = src.r
+    
+    """
+
+    b, g, r = cv2.split(src)
+    cv2.max(b, g, r)
+    cv2.max(b, r, b)
+    cv2.merge((b, g, r), dst)
