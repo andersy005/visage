@@ -58,3 +58,15 @@ def applyLookupArray(lookupArray,src, dst):
 
     dst[:] = lookupArray[src]
 
+
+def createCompositeFunc(func0, func1):
+    """Return a composite of two functions"""
+
+    if func0 is None:
+        return func1
+
+    if func1 is None:
+        return func0
+
+    return lambda x : func0(func1(x))
+
