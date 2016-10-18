@@ -67,4 +67,38 @@ class VFuncFilter(object):
         dstFlatView = utils.flatView(dst)
         utils.applyLookupArray(self._vlookupArray, srcFlatView, dstFlatView)
 
+
+class VcurveFilter(VFuncFilter):
+    """A filter that applies a curve to V ( or all of BGR)."""
+
+    def __init__(self, vPoints, dtype = np.uint8):
+        VFuncFilter.__init__(self, utils.createCurveFunc(vPoints), dtype)
+
+
+
+class BGRFuncFilter(object):
+    """A filter that applies different functions to each of BGR."""
+
+    def __init__(self, vFunc = None, bFunc = None, gFunc = None, rFunc = None, dtype = np.uint8):
+        length = np.iinfo(dtype).max + 1
+        self._bLookupArray = utils.createLookupArray(
+            utils.createCompositeFunc(bFunc, vFunc), length)
+
+        self._gLookupArray = utils.createLookupArray(
+            utils.createCompositeFunc(gFunc, vFunc), length)
+
+        self._rLookupArray = utils.createLookupArray(
+            utils.createCompositeFunc(rFunc, vFunc), length)
+
+
+    def apply(self, src, dst):
+        """Apply the filter with a BGR source/destination."""
+
+        b, g, r = cv2.split(src)
+        utils.applyLookupArray(self._bLookupArray, b, b)
+        utils.applyLookupArray(self._gLookupArray, g, g)
+        utils.applyLookupArray(self._rLookupArray, r, r)
+
+        
+           
         
