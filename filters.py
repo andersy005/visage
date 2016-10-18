@@ -99,6 +99,20 @@ class BGRFuncFilter(object):
         utils.applyLookupArray(self._gLookupArray, g, g)
         utils.applyLookupArray(self._rLookupArray, r, r)
 
+
+class BGRCurveFilter(BGRFuncFilter):
+    """A filter that applies different curves to each of BGR."""
+
+    def __init__(self, vPoints = None, bPoints = None, gPoints = None, 
+                 rPoints = None, dtype = np.uint8):
+
+                 BGRFuncFilter.__init__(self,
+                                     utils.createCurveFunc(vPoints),
+                                     utils.createCurveFunc(bPoints),
+                                     utils.createCurveFunc(gPoints),
+                                     utils.createCurveFunc(rPoints), dtype)
+                                     
+
         
            
         
