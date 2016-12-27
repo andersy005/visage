@@ -1,118 +1,184 @@
 import cv2
-import numpy as np
-import utils
+import numpy as np 
 
-
-def recolorRC(src, dst):
-    """Simulate conversion from BGR to RC (red, cyan).
-    
-    The source and destination images must both be in BGR format.
-    
-    Blues and greens are replaced with cyans
-    
-    Pseudocode:
-    dst.b = dst.g = 0.5 * (src.b + src.g)
-    dst.r = src.r
-    
-    """
-    # Use split() to extract a source image's channels as one dimensional arrays
-    b, g, r = cv2.split(src)
-
-    """
-    The arguments to addWeighted() are (in order) the first source
-    array, a weight applied to the first source array, the second source array, a
-    weight applied to the second source array, a constant added to the result, and
-    a destination array.
-
-    Replace the B channel values with an average of B and G
-    """
-    cv2.addWeighted(b, 0.5, g, 0.5, 0, b)
-
-    # Replace the values in dst image with the modified channels. 
-    cv2.merge((b, b, r), dst)
+from scipy.interpolate import UnivariateSpline
 
 
 
-def recolorCMV(src, dst):
-    """Simulate conversion from BGR to CMV (Cyan, magenta, value)
-    The source and destination images must both be in BGR format.
-    Yellows are desaturated/
-    
-    Pseudocode:
-    dst.b = max(src.b, src.g,src.r)
-    dst.g = src.g
-    dst.r = src.r
-    
-    """
+class PencilSketch:
+	
+	def __init__(self, (width, height), bg_gray = 'pencilsketch_bg.jpg'):
+		self.width = width
+		self.height = height
 
-    b, g, r = cv2.split(src)
-    cv2.max(b, g, r)
-    cv2.max(b, r, b)
-    cv2.merge((b, g, r), dst)
+
+		# try to open background canvas (if it exists)
+		self.canvas = cv2.imread(bg_gray, cv2.CV_8UC1)
+		if self.canvas is not None:
+			self.canvas = cv2.resize(self.canvas, (self.width, self.height))
 
 
 
-class VFuncFilter(object):
-    """A filter that applies a function to V (or all of BGR)"""
+	# a render method that will perform the pencil sketch
 
-    def __init__(self, vFunc = None, dtype = np.uint8):
-        length = np.iinfo(dtype).max + 1
-        self._vlookupArray = utils.createLookupArray(vFunc, length)
-
-
-    def apply(self, src, dst):
-        """Apply the filter with a BGR or gray source/destination."""
-
-        srcFlatView = utils.flatView(src)
-        dstFlatView = utils.flatView(dst)
-        utils.applyLookupArray(self._vlookupArray, srcFlatView, dstFlatView)
+	def render(self, img_rgb):
+		# convert RGB image to grayscale
+		 img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
+		 img_blur = cv2.GaussianBlur(img_gray, (21, 21), 0, 0 )
+	   
+		 img_blend = cv2.divide(img_gray, img_blur, scale=256)
 
 
-class VcurveFilter(VFuncFilter):
-    """A filter that applies a curve to V ( or all of BGR)."""
+		# if available, blend with background canvas
+		 if self.canvas is not None:
+			 img_blend = cv2.multiply(img_blend, self.canvas, scale=1./256)
 
-    def __init__(self, vPoints, dtype = np.uint8):
-        VFuncFilter.__init__(self, utils.createCurveFunc(vPoints), dtype)
+
+		 return cv2.cvtColor(img_blend, cv2.COLOR_GRAY2RGB)
 
 
 
-class BGRFuncFilter(object):
-    """A filter that applies different functions to each of BGR."""
+class WarmingFilter:
+	"""Warming filter
 
-    def __init__(self, vFunc = None, bFunc = None, gFunc = None, rFunc = None, dtype = np.uint8):
-        length = np.iinfo(dtype).max + 1
-        self._bLookupArray = utils.createLookupArray(
-            utils.createCompositeFunc(bFunc, vFunc), length)
+	A class that applies a warming filter to an image.
+	The class uses curve filters to manipulate the perceived color temperature
+	of an image. The warming filter will shift the image's color spectrum
+	towards red, away from blue.
 
-        self._gLookupArray = utils.createLookupArray(
-            utils.createCompositeFunc(gFunc, vFunc), length)
+	"""
 
-        self._rLookupArray = utils.createLookupArray(
-            utils.createCompositeFunc(rFunc, vFunc), length)
+	def __init__(self):
+		"""Initialize look-up table for curve filter"""
+
+		self.incr_ch_lut = self._create_LUT_8UC1([0, 64, 128, 192, 256],
+												 [0, 70, 140, 210, 256])
+		self.decr_ch_lut = self._create_LUT_8UC1([0, 64, 128, 192, 256],
+												 [0, 30, 80, 120, 192])
+
+	def render(self, img_rgb):
+		"""Applies warming filter to an RGB image
+
+			:param img_rgb: RGB image to be processed
+			:returns: Processed RGB  image
+
+		"""
+
+		# warming filter: increase red, decrease blue
+		c_r, c_g, c_b = cv2.split(img_rgb)
+		c_r = cv2.LUT(c_r, self.incr_ch_lut).astype(np.uint8)
+		c_b = cv2.LUT(c_b, self.decr_ch_lut).astype(np.uint8)
+		img_rgb = cv2.merge((c_r, c_g, c_b))
+
+		# increase color saturation
+		c_h, c_s, c_v = cv2.split(cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV))
+		c_s = cv2.LUT(c_s, self.incr_ch_lut).astype(np.uint8)
+
+		return cv2.cvtColor(cv2.merge((c_h, c_s, c_v)), cv2.COLOR_HSV2RGB)
 
 
-    def apply(self, src, dst):
-        """Apply the filter with a BGR source/destination."""
+	def _create_LUT_8UC1(self, x, y):
+		"""Creates a look-up table using scipy's spline interpolation"""
 
-        b, g, r = cv2.split(src)
-        utils.applyLookupArray(self._bLookupArray, b, b)
-        utils.applyLookupArray(self._gLookupArray, g, g)
-        utils.applyLookupArray(self._rLookupArray, r, r)
+		spl = UnivariateSpline(x, y)
+		return spl(xrange(256))
 
 
-class BGRCurveFilter(BGRFuncFilter):
-    """A filter that applies different curves to each of BGR."""
+class CoolingFilter:
+	"""Cooling Filter
 
-    def __init__(self, vPoints = None, bPoints = None, gPoints = None, 
-                 rPoints = None, dtype = np.uint8):
+	A class that applies a cooling filter to an image. The class uses
+	curve filters to manipulate the perceived color temperature of an 
+	image. The warming filter will shift the image's color spectrum towards blue,
+	away from red.
 
-                 BGRFuncFilter.__init__(self,
-                                     utils.createCurveFunc(vPoints),
-                                     utils.createCurveFunc(bPoints),
-                                     utils.createCurveFunc(gPoints),
-                                     utils.createCurveFunc(rPoints), dtype)
-                                     
+	"""
 
-        
-           
-        
+	def __init__(self):
+		"""Initialize look-up table for curve filter"""
+
+		self.incr_ch_lut = self._create_LUT_8UC1([0, 64, 128, 192, 256],
+												 [0, 70, 140, 210, 256])
+		self.decr_ch_lut = self._create_LUT_8UC1([0, 64, 128, 192, 256],
+												 [0, 30, 80, 120, 192])
+
+	def render(self, img_rgb):
+		"""Applies warming filter to an RGB image
+
+			:param img_rgb: RGB image to be processed
+			:returns: Processed RGB  image
+
+		"""
+
+		# warming filter: increase red, decrease blue
+		c_r, c_g, c_b = cv2.split(img_rgb)
+		c_r = cv2.LUT(c_r, self.decr_ch_lut).astype(np.uint8)
+		c_b = cv2.LUT(c_b, self.incr_ch_lut).astype(np.uint8)
+		img_rgb = cv2.merge((c_r, c_g, c_b))
+
+		# increase color saturation
+		c_h, c_s, c_v = cv2.split(cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV))
+		c_s = cv2.LUT(c_s, self.decr_ch_lut).astype(np.uint8)
+
+		return cv2.cvtColor(cv2.merge((c_h, c_s, c_v)), cv2.COLOR_HSV2RGB)
+
+
+	def _create_LUT_8UC1(self, x, y):
+		"""Creates a look-up table using scipy's spline interpolation"""
+
+		spl = UnivariateSpline(x, y)
+		return spl(xrange(256))
+
+
+
+
+class Cartoonizer:
+	"""Cartoonizer effect
+
+	A class that applies a cartoon effect to an image.
+	The class uses a bilateral filter and adaptive thresholding to create
+	a cartoon effect.
+	"""
+
+	def __init__(self):
+		pass
+
+	def render(self, img_rgb):
+		numDownSamples = 2             # Number of downscaling steps
+		numBilateralFilters = 7		   # number of bilateral filtering steps
+
+		# STEP 1
+		# downsample image using Gaussian pyramid
+
+		img_color = img_rgb
+		for _ in xrange(numDownSamples):
+			img_color = cv2.pyrDown(img_color)
+
+
+		# repeatedly apply small bilateral filter instead of applying
+		# one large filter
+		for _ in xrange(numDownSamples):
+			img_color = cv2.pyrUp(img_color)
+
+
+		# STEPS 2 and 3
+		# Convert to grayscale and apply median blur
+
+		img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
+		img_blur = cv2.medianBlur(img_gray, 7)
+
+
+		# STEP 4
+		# detect and enhance edges
+
+		img_edge = cv2.adaptiveThreshold(img_blur, 255,
+										 cv2.ADAPTIVE_THRESH_MEAN_C,
+										 cv2.THRESH_BINARY, 9, 2)
+
+
+		# STEP 5
+		# convert back to color so that it can bit-ANDed with color image
+		img_edge = cv2.cvtColor(img_edge, cv2.COLOR_GRAY2RGB)
+		return cv2.bitwise_and(img_color, img_edge)
+
+
